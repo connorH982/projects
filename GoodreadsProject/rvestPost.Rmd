@@ -1,0 +1,202 @@
+---
+title: "Scraping Goodreads.com: Data Munging (Part I)"
+author: "Connor Higgins"
+date: "June 22, 2018"
+output: html_document
+---
+
+## Introduction
+
+Since this is the first post, I'll start off with a projects that hits the essentials of analysis. 
+
+Web-scraping is the process of collecting data from a website, such as prices from Newegg.com, Amazon, etc. It is a really helpful asset for any stats/comp sci student, professional or hobbyist to have. One simple use you might have would be to extend the "reach" of your projects--no easily available public dataset for your project? Then you can make one yourself with a scraper (also known as a spider)!
+
+This project will be a multi-parter:
+
+* **Data Collection**: Building a scraper to collect and organize data from Reading Lists on Goodreads.com
+* **Data Organization**: Use the scraper to build a relational database
+* **Visualization and Analysis**: Detailed analysis and statistical testing
+
+Feel free to use any code used in this project, it will be available on Github.
+
+Hope you enjoy reading, because we are looking at Goodreads.com! 
+
+## Goodreads
+
+For those unaware, Goodreads.com is a site where readers can rank and review books they read. It is an excellent source for book recommendations, and also for tracking the books you've read. The central idea behind Goodreads is that readers care more for recommendations by fellow readers than "official" bestseller's lists--not a bad idea.
+
+My idea for this project on the other hand was a vague plan to analyze the books that I enjoy reading.
+
+How to start? All the information I could want can be found on the main site, there is simply the matter of getting it into a dataset. "Web scraping" is the process of collecting data from a web page. It sounds complicated, but really the process is quite simple!
+
+### Preview of the Final Product ###
+Sneak peak of the resulting dataset for this page. We will be building a function that can build a dataset given the url of any public list on Goodreads (check the listopedia on the site for others).
+
+[Excellent Space Opera](https://github.com/connorH982/projects/blob/master/GoodreadsProject/excellentSpaceOpera.csv)
+
+
+## Quick Primer ##
+
+### Tools ###
+* I will be using [rvest](https://github.com/hadley/rvest/blob/master/README.md) for scraping as I am working in R. Python user? Try [beautiful soup](https://www.crummy.com/software/BeautifulSoup/bs4/doc/).
+* [selectorGadget (Chrome)](https://chrome.google.com/webstore/detail/selectorgadget/mhjhnkcfbdhnjickkkdbjoemdmbfginb?hl=en)
+* Other packages:
+    - dplyr
+    - scales
+    - magrittr*
+    - ggplot2
+    
+*rvest is designed to work with magrittr, though it is not strictly necessary. Magrittr lets you pipe functions with %>%.
+i.e.
+```{r}
+# 'a' gets sent as the first argument to the next function by %>%
+library(magrittr)
+
+a<-c("2","5")
+a%>%as.numeric()%>%max()
+```
+
+
+### Web Scraping Sample ###
+
+Generally speaking we only have a few steps to follow in this project. If you are scraping a different site things may be different. You might run into a website not written in HTML, or a site which is against web scrapers (which happens).
+
+Take a look at this small part of the list we are looking at here. We'll select the titles of the books here.
+
+![Make sure you installed SelectorGadget! You should see a magnifying glass in the top right corner (visible above).](https://i.imgur.com/J7IYyqx.png)
+
+
+To select the title we need a "path" that we will give to rvest's html_nodes() function. You can get that path using SelectorGadget. Usage is simple: 
+
+* Left click the element(s) you want. SelectorGadget will make a guess at the path, and the elements included in the guess get highlighted (in yellow).
+* Right click elements you *don't* want. SelectorGadget will use these to perfect the guess.
+* Continue until only the elements you want are highlighted.
+![Here I selected the first title (left click) and deselected "Want to Read" (right click). I only have the titles highlighted now.](https://i.imgur.com/YZf4G2e.png)
+
+Lastly we use rvest to get the titles off this page.
+```{r, eval=FALSE}
+library(rvest)
+
+#Retrieves the html of a page in its entirety, hardly suited for use yet.
+list_Main<-read_html("https://www.goodreads.com/list/show/1127")
+
+  #html_nodes()<-Takes the path we found as its argument, and retrieves those elements.
+  #html_text()<-Extracts the text from what html_nodes() found. Ither functions you may use here are html_tables() if you are scraping a table directly, or html_tag() for a tag.
+  Book.titles<-html_nodes(List_Main,'.bookTitle span')%>%html_text()
+```
+These are the general steps. Since webpages are put together by humans (so sometimes the "pattern" we are looking for won't hold) and constantly updated, you may have to fiddle with it depending on the site.
+
+Goodreads is html, which makes it relatively easy to scrape with rvest. XML pages can be scraped with the "xml" library.
+
+## Data Collection ##
+### Breaking Down the Steps ###
+Sometimes this is simple, sometimes less so. In my case I want to look at lists books I enjoy reading.
+
+The end goal is to build a dataset by scraping a public reading list on Goodreads.
+
+Here is one list for example: [Excellent Space Operas](https://www.goodreads.com/list/show/1127.Excellent_Space_Opera)
+
+We can get the following information right from this page:
+
+ * Title
+ * Author
+ * urls to each book's page
+ * Goodreads Book ID (this we can get from the url with some regular expressions)
+ 
+Also notice this little thing at the bottom?
+
+![](https://i.imgur.com/vVXXz71.png)
+
+
+We will scrape this part to figure out how many pages on the list we need to scrape.
+
+We can then use the urls from here to visit each work's individual pages, and get even more information.
+
+**In sum here's the structure of the webscraper**:
+
+ * Scrape the first page of the list 
+    * Use this to figure out the number of pages we need to visit
+    * Initalize a dataframe ("data"), which holds information on each work found
+ *  **First "For"" Loop**: from 1:(number of webpages to view list) <- "Scrape the List"
+    * Collect available information (title, ID, author, hyperlinks)
+    * Add all of these to the dataframe we initialized ("data")
+ * **Second "For"" Loop**: 1:(number of works found) <- "Scrape Individual Book Pages"
+    * Use the hyperlinks from the last step to visit each work's individual pages.
+    * Collect additional information (page lengths, genre tags, summaries, total reviews, average rating, total ratings, proportion of reviewers that wrote text reviews)
+ 
+
+### Scrape the List ###
+
+Below is the code which is used to scrape the list itself. In other words, everything up to the second bullet in the outline above.
+
+The full code can be found [here](https://github.com/connorH982/projects/blob/master/GoodreadsProject/goodReadsWebscraper.R).
+
+Feel free to glance through it and see how this works.
+
+```{r scraperStep1, eval=FALSE}
+goodReads.webscrape<-function(listUrl){
+  
+  #Takes the url of a reading list, scrapes it. This collects urls, goodReads ID's, titles, and authors.
+  
+  #The urls are used by the second part of the scraper to visit each book's page, and collect additional info.
+  
+  #Read the first page, get the number of webpages that make up the list.
+  
+  List_Main<-read_html(listUrl)
+  pages<-html_nodes(List_Main,'.pagination a')%>%html_text()
+  listIndex<-as.numeric(pages[length(pages)-1])
+  
+  #Exception for short lists less than 100 books
+  
+  if(length(listIndex)==0){
+    listIndex=1
+  }
+  guide<-list()
+  data<-data.frame()
+  
+  #That first "for" loop.
+  for(i in 1:listIndex){
+    ReadList<-read_html(paste(listUrl,"?page=",i,sep=''))
+    
+    #Titles, authors, and hyperlinks from browsing the given list.
+    #Using a couple extra steps here. This was to handle an occasional error with certain lists. Normally you         should only need one html_nodes() command.
+    
+    title<-html_nodes(ReadList,"div.leftContainer")%>%html_nodes("td")%>%html_nodes('.bookTitle span')%>%html_text()
+    authors<-html_nodes(ReadList,"div.leftContainer")%>%html_nodes("td")%>%html_nodes('.authorName span')%>%html_text()
+    hyper<-html_nodes(ReadList,"div.leftContainer")%>%html_nodes("td")%>%html_nodes('a.bookTitle')%>%html_attr("href")
+    
+    #Extract Goodreads book ID from url (using regular expressions).
+    #gsub(): Replaces anything matching the regular expression with ""
+    
+    #Second gsub() is used to catch an occasional exception.
+    
+    goodreadsID<-gsub(".*/book/show/\\s*|-.*", "", hyper)
+    goodreadsID<-gsub("\\..*","",goodreadsID)%>%as.numeric()
+    
+    a<-cbind(goodreadsID,title,authors,hyper)
+    data<-rbind(data,a)
+    complete<-i/listIndex
+    
+    #Handy progress message to let the user keep track of the script. 
+    
+    cat("Completion (Step 1): ",format(percent(complete),digits=4,justify="left"),"\n","Works Found: ",nrow(data),"\n")
+  }
+  
+  cat("Step 1 Complete! Found ",nrow(data)," separate works in this list.", "\n")
+  return(data)
+}
+```
+
+## Conclusion
+
+With that I now have a web scraping function that can be used on *any* Goodreads list, given its url (though it is not perfect). But there is an added bonus.
+
+Remember we also captured each work's individual ID number. You may recognize that we can use this as a "primary key", which is key component of relational databases. 
+
+The function lets us scrape individual reading lists and organize them into tabular data (think spreadsheets, dataframes in R, etc.). The ID codes let us relate our "lists of reading lists" with a relational database.
+
+This is why I made this be multi-parter. We've created a data collection and data munging function, but this is only the beginning. We can then use the resulting database for analysis and visualization (which will be the next posts)!
+
+[Github](https://github.com/connorH982/projects/tree/master/GoodreadsProject)
+
+
