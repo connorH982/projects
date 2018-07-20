@@ -1,0 +1,216 @@
+---
+title: "Exploratory Data Analysis"
+output: html_document
+---
+Data comes from here: https://www.goodreads.com/list/show/50.The_Best_Epic_Fantasy
+
+```{r include = FALSE}
+library(dplyr)
+library(magrittr)
+library(ggplot2)
+library(RColorBrewer)
+library(quanteda)
+bestEpicFantasy<-read.csv('https://raw.githubusercontent.com/connorH982/projects/master/GoodreadsProject/bestEpicFantasy.csv',header = TRUE)
+```
+
+## Wordclouds
+
+### Wordcloud of the book titles
+
+```{r}
+############# TITLE WORDCLOUD #############################################
+# Create corpus
+title.corpus<-corpus(as.character(bestEpicFantasy$title))
+
+# now creating a document-feature matrix using dfm()
+T.plot<-dfm(title.corpus, tolower = TRUE, remove_punct = TRUE, remove_twitter = TRUE, remove_numbers = TRUE, remove=stopwords(source = "smart"))
+
+# Colors
+T.col <- brewer.pal(10, "BrBG")  
+
+# Create Wordcloud
+textplot_wordcloud(T.plot, min_count = 16, color = T.col)
+```
+
+### Wordcloud of the book descriptions
+
+```{r}
+############# DESCRIPTIONS WORDCLOUD #############################################
+# Create corpus
+descriptions.corpus<-corpus(as.character(bestEpicFantasy$book.descriptions))
+
+# now creating a document-feature matrix using dfm()
+D.plot<-dfm(descriptions.corpus, tolower = TRUE, remove_punct = TRUE, remove_twitter = TRUE, remove_numbers = TRUE, remove=stopwords(source = "smart"))
+
+# Colors
+D.col <- brewer.pal(10, "BrBG")  
+
+# Wordcloud
+textplot_wordcloud(D.plot, min_count = 16, color = D.col)  
+```
+
+## Numerical Analysis
+
+### Total Ratings: Histogram and Boxplot
+
+```{r}
+ggplot(data = bestEpicFantasy, aes(log(bestEpicFantasy$total_ratings)))+
+  geom_histogram(bins = 25,fill="dodgerblue4")+
+  labs(title="Histogram for Total # of Reviews")+
+  labs(x="Log Total Reviews",y="Counts")
+
+
+ggplot(data = bestEpicFantasy, aes(y=bestEpicFantasy$total_ratings,x=""))+
+  geom_boxplot(fill="dodgerblue4",width=0.1)+
+  labs(title="Boxplot for Total Ratings")+
+  labs(y="Total # of Ratings",x="")
+
+#Outlier: It is Harry Potter book 1 (no surprise there)
+bestEpicFantasy[which.max(bestEpicFantasy$total_ratings),c("title","total_ratings","book.descriptions")]
+```
+
+### Pages: Histogram and Boxplot
+
+```{r}
+#################### PLOT Pages #########################################
+
+pageplt<-ggplot(data = bestEpicFantasy, aes(bestEpicFantasy$pageCounts))+
+  geom_histogram(bins = 25,fill="dodgerblue4")+
+  labs(title="Histogram for Page Lengths")+
+  labs(x="Total Pages",y="Counts")
+pageplt
+
+ggplot(data = bestEpicFantasy, aes(y=bestEpicFantasy$pageCounts,x=""))+
+  geom_boxplot(fill="dodgerblue4",width=0.1)+
+  labs(title="Boxplot for Page Lengths")+
+  labs(y="Page Lengths",x="")
+```
+
+### Average Ratings: Histogram and Boxplot
+
+```{r}
+################### PLOT Average Ratings ###################################
+
+avgplt<-ggplot(data = bestEpicFantasy, aes(bestEpicFantasy$average_rating))+
+  geom_histogram(bins = 25,fill="dodgerblue4")+
+  labs(title="Histogram for Average Ratings")+
+  labs(x="Average Rating",y="Counts")
+avgplt
+
+ggplot(data = bestEpicFantasy, aes(y=bestEpicFantasy$average_rating,x=""))+
+  geom_boxplot(fill="dodgerblue4",width=0.1)+
+  labs(title="Boxplot for Average Ratings")+
+  labs(y="Average Rating",x="")
+```
+
+## Categorical Data
+
+### Awards/Nominations: Barplot
+
+```{r}
+#######################PLOT Award ########################################
+
+awardplt<-ggplot(data=bestEpicFantasy,aes(bestEpicFantasy$hasAward))+geom_bar(fill="dodgerblue4")
+awardplt
+```
+
+### Genres: Barplot
+
+Almost all books in this set are tagged Fantasy, with a large number of other genres with very few titles. Therefore I relabeled these rarer genres as "Other genres" for presentation and testing.
+
+```{r}
+######################PLOT Genres ###########################################
+
+tp <- bestEpicFantasy
+levels(tp$genreVoted)[levels(tp$genreVoted) != "Fantasy"] <- "Other Genres"
+
+genreplt<-ggplot(data = tp,aes(x = genreVoted))+geom_bar(fill="dodgerblue4")+
+  labs(title = "Histogram for Genres")+
+  labs(x = "Genre 'tagged' by vote on GoodReads.com", y = "Count")
+genreplt
+
+```
+
+## Crossing Variables and Statistical Testing
+
+### Genres and Awards: CHI-SQ
+
+```{r}
+############# CROSS Genres With Awards###################################
+# Outcome: SUCCESSFULLY reject Null Hypothesis
+crossplt<-ggplot(data = tp,aes(x = genreVoted, fill = hasAward))+geom_bar(position = "dodge")+
+  labs(title = "Genres crossed with Awards")+
+  labs(x = "Genre", y = "Count")+
+  scale_fill_discrete("Has Award/Nom")
+crossplt
+
+# Same plot but if we wanted to exclude NA cases
+tpNoNA<-tp[complete.cases(tp),]
+tbl<-table(tpNoNA$genreVoted, tpNoNA$hasAward)
+chisq.test(tbl)
+
+crossplt2<-ggplot(data = tpNoNA,aes(x = genreVoted, fill = hasAward))+geom_bar(position = "dodge")+
+  labs(title = "Genres crossed with Awards (excluding NAs)")+
+  labs(x = "Genre", y = "Count")+
+  scale_fill_discrete("Has Award/Nom")
+crossplt2
+```
+
+### Average Rating with Genre: Kruskal-Wallis
+
+```{r}
+############# CROSS Genres With Average Ratings###################################
+# Outcome: Close... can reject the null hypothesis at 0.05 confidence threshold.
+
+avgGenrePlt<-ggplot(data = tp,aes(x = genreVoted, y = average_rating))+geom_boxplot(fill="dodgerblue4", width=0.1)+
+  labs(title = "Genres By Ratings")+
+  labs(x = "Genre", y = "Ratings")
+avgGenrePlt
+
+kruskal.test(average_rating~genreVoted,data = tp)
+tblResults<-with(tp,tapply(average_rating,genreVoted,median))
+tblResults
+```
+
+### Page Lengths with Genre: Kruskal-Wallis
+
+```{r}
+############# CROSS Genres With Page Counts###################################
+# Outcome: SUCCESSFULLY reject Null hypothesis
+
+pageGenrePlt<-ggplot(data = tp,aes(x = genreVoted, y = pageCounts))+geom_boxplot(fill="dodgerblue4",width=0.1)+
+  labs(title = "Genres By Pages")+
+  labs(x = "Genre", y = "Page Length")
+pageGenrePlt
+
+kruskal.test(pageCounts~genreVoted,data = tp)
+```
+
+### Average Rating with Award/Nomination: Kruskal-Wallis
+
+```{r}
+############# CROSS Award With Average Ratings###################################
+#Outcome: FAIL to reject null
+
+avgGenrePlt<-ggplot(data = tp,aes(x = hasAward, y = average_rating))+geom_boxplot(fill="dodgerblue4", width=0.1)+
+  labs(title = "Awards/Nominations By Ratings")+
+  labs(x = "Award/Nominations", y = "Ratings")
+avgGenrePlt
+
+kruskal.test(average_rating~hasAward,data = tp)
+```
+
+### Total Ratings with Award/Nomination: Kruskal-Wallis
+
+```{r}
+############# CROSS Awards With Total Numbers of Reviews ###################################
+#Outcome: SUCCESSFULLY reject Null
+pageGenrePlt<-ggplot(data = tp,aes(x = hasAward, y = total_ratings))+geom_boxplot(fill="dodgerblue4",wdith=0.1)+
+  labs(title = "Award/Nomination By Total Ratings")+
+  labs(x = "Award", y = "Total Ratings")
+pageGenrePlt
+
+kruskal.test(total_ratings~hasAward,data = tp)
+tblResults<-with(tp,tapply(total_ratings,hasAward,median))
+tblResults
+```
