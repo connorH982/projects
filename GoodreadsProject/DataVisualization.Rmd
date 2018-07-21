@@ -1,6 +1,7 @@
 ---
 title: "Exploratory Data Analysis"
-output: html_document
+output: rmarkdown::github_document
+      
 ---
 Data comes from here: https://www.goodreads.com/list/show/50.The_Best_Epic_Fantasy
 
