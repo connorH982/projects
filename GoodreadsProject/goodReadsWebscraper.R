@@ -122,7 +122,7 @@ goodReads.webscrape<-function(listUrl){
   # on how the program is doing.)
   
   badurls=0
-  total.ratings<-rep(NA,nrow(data))
+  total_ratings<-rep(NA,nrow(data))
   book.descriptions<-rep(NA,nrow(data))
   pageCounts<-rep(NA,nrow(data))
   genreVoted<-rep(NA,nrow(data))
@@ -146,9 +146,9 @@ goodReads.webscrape<-function(listUrl){
       # Number of total reviews and proportion that are also text reviews
       text_reviews[i]<-find.text.reviews(goodReads)
       
-      total.ratings[i]<-find.total.reviews(goodReads)
+      total_ratings[i]<-find.total.reviews(goodReads)
       
-      proportion_text_reviews[i]<-(text_reviews[i]/total.ratings[i])
+      proportion_text_reviews[i]<-(text_reviews[i]/total_ratings[i])
       
       #Get the summaries of each book
       book.descriptions[i]<-find.description(goodReads)
@@ -174,7 +174,7 @@ goodReads.webscrape<-function(listUrl){
     cat(paste("Completion: ",format(complete,digits=4,justify="left"),"%","       Title: ",substr(data$title[i],1,45),sep=''),'\n',
         "                       Last Captured: ",format(average_rating[i],width=3,justify="centre",nsmall=2),format(pageCounts[i],width=6,justify="centre"),format(hasAward[i],width=5,justify="centre"),format(genreVoted[i],width=15,justify="centre"),format(percent(proportion_text_reviews[i]),width=5,justify="right"),'\n')
   }
-  newData<-cbind.data.frame(pageCounts,proportion_text_reviews,average_rating,genreVoted,hasAward,total.ratings,book.descriptions)
+  newData<-cbind.data.frame(pageCounts,proportion_text_reviews,average_rating,genreVoted,hasAward,total_ratings,book.descriptions)
   Finished<-cbind(data,newData)
   return(Finished)}
 
@@ -195,7 +195,7 @@ goodReads.webscrape<-function(listUrl){
 
 #bestEpicFantasy<-goodReads.webscrape('https://www.goodreads.com/list/show/50.The_Best_Epic_Fantasy')
 
-excellentSpaceOpera<-goodReads.webscrape('https://www.goodreads.com/list/show/1127')
+#excellentSpaceOpera<-goodReads.webscrape('https://www.goodreads.com/list/show/1127')
 
 #bestScienceFiction<-goodReads.webscrape('https://www.goodreads.com/list/show/19341')
 
