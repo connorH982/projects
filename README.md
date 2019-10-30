@@ -4,6 +4,8 @@ Portfolio: academic, learning, and hobby projects
 
 # Temporary Note on steam_tidy.csv for anyone visiting for HW6 in Data Management
 
+Feel free to contact me about this, I don't mind answers questions!
+
 * app_id: Primary Key, that is associated with a specific game (used by Steam and SteamSpy both)
 
 ### Sources
