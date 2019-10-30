@@ -21,4 +21,4 @@ Price is rendered without the dollar sign just due to api I used to collect the 
 Several games have 0 hours played. These are things I've gotten from sites like https://www.humblebundle.com/ (mostly that). They give you a bundle of games for a very low price (that goes to charity), but if your only looking for 2 out of 8 of the games then you end up lots of games you never play. 
 I'd highly recommend filtering games out with 0 hours, or at least putting in an indicator column somewhere. They are essentially random noise games with no playtime that could throw off any analysis.
 
-Didn't realize at the time, but score didn't actually return results from the Steam Spy API for any game. Checking (here)[https://steamspy.com/], it seems to be a currently missing value. I'd recommend just removing the column.
+Didn't realize at the time, but score didn't actually return results from the Steam Spy API for any game. Checking [here](https://steamspy.com/), it seems to be a currently missing value. I'd recommend just removing the column.
